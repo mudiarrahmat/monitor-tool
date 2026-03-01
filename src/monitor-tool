@@ -1,0 +1,125 @@
+#!/usr/bin/env python3
+
+import subprocess
+import tkinter as tk
+from tkinter import messagebox, scrolledtext
+import threading
+import sys
+import os
+
+IW_PATH = "/usr/sbin/iw"
+HELPER_PATH = "/usr/local/bin/monitor-helper.sh"
+
+def get_interfaces():
+    try:
+        result = subprocess.run([IW_PATH, "dev"], capture_output=True, text=True)
+        if result.returncode != 0:
+            return []
+
+        interfaces = []
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line.startswith("Interface"):
+                interfaces.append(line.split()[1])
+        return interfaces
+    except:
+        return []
+
+def get_status(interface):
+    try:
+        result = subprocess.run(
+            [IW_PATH, "dev"],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode != 0:
+            return "Unknown"
+
+        for line in result.stdout.splitlines():
+            line = line.strip()
+
+            if line.startswith("type"):
+                mode = line.split()[1]
+                if mode == "monitor":
+                    return "Monitor"
+
+        return "Managed"
+
+    except:
+        return "Unknown"
+
+def auto_refresh():
+    update_status()
+    app.after(2000, auto_refresh)
+
+def refresh_interfaces():
+    interfaces = get_interfaces()
+    menu = dropdown["menu"]
+    menu.delete(0, "end")
+
+    for iface in interfaces:
+        menu.add_command(label=iface, command=lambda value=iface: selected_interface.set(value))
+
+    if interfaces:
+        selected_interface.set(interfaces[0])
+        update_status()
+
+def update_status():
+    iface = selected_interface.get()
+    status = get_status(iface)
+    status_label.config(text=f"Status: {status}")
+
+def run_helper(action):
+    iface = selected_interface.get()
+
+    def task():
+        process = subprocess.Popen(
+            ["pkexec", HELPER_PATH, action, iface],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True
+        )
+
+        for line in process.stdout:
+            log_panel.insert(tk.END, line)
+            log_panel.see(tk.END)
+
+        process.wait()
+        refresh_interfaces()
+        update_status()
+
+    threading.Thread(target=task).start()
+
+# GUI Setup
+app = tk.Tk()
+app.title("Monitor Mode Controller v1")
+app.geometry("500x400")
+app.resizable(False, False)
+
+interfaces = get_interfaces()
+
+if not interfaces:
+    messagebox.showerror("Error", "No wireless interface detected.")
+    sys.exit(1)
+
+tk.Label(app, text="Select Interface:", font=("Arial", 11)).pack(pady=5)
+
+selected_interface = tk.StringVar(value=interfaces[0])
+dropdown = tk.OptionMenu(app, selected_interface, *interfaces)
+dropdown.pack(pady=5)
+
+status_label = tk.Label(app, text="Status: Unknown", font=("Arial", 10))
+status_label.pack(pady=5)
+
+tk.Button(app, text="Enable Monitor Mode", command=lambda: run_helper("start"), bg="#2ecc71").pack(pady=5)
+tk.Button(app, text="Disable Monitor Mode", command=lambda: run_helper("stop"), bg="#e74c3c").pack(pady=5)
+tk.Button(app, text="Refresh Interfaces", command=refresh_interfaces).pack(pady=5)
+
+log_panel = scrolledtext.ScrolledText(app, height=10)
+log_panel.pack(padx=10, pady=10, fill="both", expand=True)
+
+update_status()
+auto_refresh()
+
+app.mainloop()

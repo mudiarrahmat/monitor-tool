@@ -1,0 +1,11 @@
+Package: monitor-tool
+Version: 1.0.0
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: Kuaci <your@email.com>
+Depends: aircrack-ng, python3, python3-tk
+Description: Monitor Mode GUI Controller
+ Advanced GUI tool for enabling and disabling WiFi monitor mode
+ with real-time status and logging.
+ 

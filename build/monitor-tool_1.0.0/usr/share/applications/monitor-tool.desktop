@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Monitor Mode Tool
+Comment=Enable/Disable WiFi Monitor Mode
+Exec=/usr/local/bin/monitor-tool
+Icon=utilities-terminal
+Terminal=false
+Type=Application
+Categories=Network;Utility;
